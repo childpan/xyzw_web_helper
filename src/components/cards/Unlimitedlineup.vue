@@ -13,6 +13,13 @@
     <template #badge>
       <span>{{ state.isRunning ? "运行中" : "已停止" }}</span>
     </template>
+    <template #extra>
+      <div class="websocket-status" :class="{ connected: isWebSocketConnected }">
+        <span class="status-dot"></span>
+        <span v-if="isWebSocketConnected">已连接</span>
+        <span v-else @click="connectWebSocket" title="点击连接" style="cursor: pointer;" >未连接</span>
+      </div>
+    </template>
     <template #default>
       <div class="lineup-container">
         <div class="toolbar">
@@ -21,13 +28,14 @@
             size="small"
             @click="refreshTeamInfo"
             :loading="loading"
+            :disabled="state.isRunning"
           >
             刷新数据
           </n-button>
           <n-button
             size="small"
             @click="saveCurrentLineup"
-            :disabled="editingHeroes.length === 0"
+            :disabled="editingHeroes.length === 0 || state.isRunning"
           >
             保存阵容
           </n-button>
@@ -35,7 +43,7 @@
             type="success"
             size="small"
             @click="openAddHeroModal"
-            :disabled="editingHeroes.length >= 5"
+            :disabled="editingHeroes.length >= 5 || state.isRunning"
           >
             上阵英雄
           </n-button>
@@ -43,6 +51,7 @@
             type="info"
             size="small"
             @click="savedLineupsModalVisible = true"
+            :disabled="state.isRunning"
           >
             已保存阵容 ({{ savedLineups.length }})
           </n-button>
@@ -58,6 +67,7 @@
               size="small"
               @click="switchTeam(teamId)"
               :loading="switchingTeamId === teamId"
+              :disabled="state.isRunning"
             >
               阵容{{ teamId }}
             </n-button>
@@ -154,6 +164,7 @@
                   size="tiny"
                   type="warning"
                   @click.stop="openExchangeModal(hero)"
+                  :disabled="state.isRunning"
                 >
                   更换
                 </n-button>
@@ -162,6 +173,7 @@
                   size="tiny"
                   type="error"
                   @click.stop="removeHero(hero)"
+                  :disabled="state.isRunning"
                 >
                   下阵
                 </n-button>
@@ -627,6 +639,30 @@ const generateLineupId = () => {
 const state = ref({
   isRunning: false,
 });
+
+const isWebSocketConnected = computed(() => {
+  const token = tokenStore.selectedToken;
+  if (!token) return false;
+  const status = tokenStore.getWebSocketStatus(token.id);
+  return status === "connected";
+});
+
+const connectWebSocket = async () => {
+  const token = tokenStore.selectedToken;
+  if (!token) {
+    message.warning("请先选择Token");
+    return;
+  }
+
+  try {
+    // 使用 selectToken 方法连接 WebSocket，forceReconnect 设为 true 强制重连
+    tokenStore.selectToken(token.id, true);
+    message.success("WebSocket连接中，请稍候...");
+  } catch (error) {
+    console.error("WebSocket连接失败:", error);
+    message.error(`WebSocket连接失败: ${error.message}`);
+  }
+};
 
 const refineModalVisible = ref(false);
 const refineModalLoading = ref(false);
@@ -1422,6 +1458,7 @@ const refreshTeamInfo = async () => {
 
     message.success("数据已刷新");
   } catch (error) {
+    console.error("刷新数据失败:", error);
     message.error(`获取数据失败: ${error.message}`);
   } finally {
     loading.value = false;
@@ -2167,6 +2204,8 @@ const applyLineup = async (lineup) => {
       }
     }
 
+    // 增加延迟，确保服务器有足够时间处理所有命令
+    await delay(1000);
     lastRefreshTime = 0;
     await refreshTeamInfo();
   } catch (error) {
@@ -2646,6 +2685,36 @@ onMounted(() => {
   align-items: baseline;
   gap: 8px;
   margin-bottom: 4px;
+}
+
+.websocket-status {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-full);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--error-color);
+  margin-left: auto;
+
+  &.connected {
+    background: rgba(34, 197, 94, 0.1);
+    color: var(--success-color);
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  button {
+    font-size: var(--font-size-xs);
+    padding: 2px 8px;
+  }
 }
 
 .hero-name {

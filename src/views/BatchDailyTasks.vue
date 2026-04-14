@@ -330,7 +330,7 @@
                   @click="batchclubsign"
                   :disabled="isRunning || selectedTokens.length === 0"
                 >
-                  一键俱乐部签到
+                  一键加入俱乐部签到
                 </n-button>
                 <n-button
                   size="small"
@@ -392,6 +392,13 @@
                   :disabled="isRunning || selectedTokens.length === 0"
                 >
                   一键灯神扫荡
+                </n-button>
+                <n-button
+                  size="small"
+                  @click="batchConsumeActivityItems"
+                  :disabled="isRunning || selectedTokens.length === 0"
+                >
+                  一键消耗活动道具
                 </n-button>
               </n-space>
             </n-tab-pane>
@@ -1997,6 +2004,22 @@
                   align-items: center;
                 "
               >
+                <label class="setting-label">默认俱乐部ID</label>
+                <n-input
+                  v-model:value="batchSettings.defaultLegionId"
+                  placeholder="输入俱乐部ID"
+                  size="small"
+                  style="width: 150px"
+                />
+              </div>
+              <div
+                class="setting-item"
+                style="
+                  flex-direction: row;
+                  justify-content: space-between;
+                  align-items: center;
+                "
+              >
                 <label class="setting-label">按积分开箱目标</label>
                 <n-input-number
                   v-model:value="batchSettings.targetBoxPoints"
@@ -3370,6 +3393,7 @@ const batchSettings = reactive({
   targetBoxPoints: 1000,
   receiverId: "",
   password: "",
+  defaultLegionId: "",
   tokenListColumns: 2,
   useGoldRefreshFallback: false,
   // 延迟配置（毫秒）

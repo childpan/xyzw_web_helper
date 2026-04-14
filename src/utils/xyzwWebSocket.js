@@ -196,6 +196,7 @@ export function registerDefaultCommands(reg) {
     .register("legion_applylist")
     .register("legion_approveapply")
     .register("legion_refuseapply")
+    .register("legion_applyjoin")
     .register("legion_agree")
     .register("legion_ignore")
     .register("legion_research")

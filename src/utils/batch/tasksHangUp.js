@@ -325,7 +325,7 @@ export function createTasksHangUp(deps) {
   };
 
   /**
-   * 一键俱乐部签到
+   * 一键加入俱乐部签到
    */
   const batchclubsign = async () => {
     if (selectedTokens.value.length === 0) return;
@@ -348,19 +348,189 @@ export function createTasksHangUp(deps) {
         });
         await ensureConnection(tokenId);
         if (shouldStop.value) return;
-        await tokenStore.sendMessageWithPromise(
-          tokenId,
-          "legion_signin",
-          {},
-          5000,
-        );
-        await new Promise((r) => setTimeout(r, 500));
-        tokenStatus.value[tokenId] = "completed";
-        addLog({
-          time: new Date().toLocaleTimeString(),
-          message: `=== ${token.name} 俱乐部签到已完成 ===`,
-          type: "success",
-        });
+
+        // 先检查是否加入了指定的俱乐部
+        if (batchSettings.defaultLegionId) {
+          try {
+            // 获取当前俱乐部信息
+            const currentLegionInfo = await tokenStore.sendMessageWithPromise(
+              tokenId,
+              "legion_getinfo",
+              {},
+              5000,
+            );
+
+            // 检查是否已经加入了指定的俱乐部
+            const isJoined = currentLegionInfo && currentLegionInfo.info && currentLegionInfo.info.id === Number(batchSettings.defaultLegionId);
+
+            if (!isJoined) {
+              // 尝试加入俱乐部
+              addLog({
+                time: new Date().toLocaleTimeString(),
+                message: `${token.name} 未加入指定俱乐部，尝试加入默认俱乐部 ${batchSettings.defaultLegionId}...`,
+                type: "info",
+              });
+
+              try {
+                // 使用 legion_applyjoin 接口申请加入俱乐部
+                const applyResult = await tokenStore.sendMessageWithPromise(
+                  tokenId,
+                  "legion_applyjoin",
+                  { legionId: Number(batchSettings.defaultLegionId) },
+                  10000,
+                );
+
+                addLog({
+                  time: new Date().toLocaleTimeString(),
+                  message: `${token.name} 申请加入俱乐部成功`,
+                  type: "success",
+                });
+
+                // 申请成功后等待一段时间让服务器处理
+                await new Promise((r) => setTimeout(r, 2000));
+
+                // 再次获取俱乐部信息，确认是否加入成功
+                const updatedLegionInfo = await tokenStore.sendMessageWithPromise(
+                  tokenId,
+                  "legion_getinfo",
+                  {},
+                  5000,
+                );
+
+                // 检查是否成功加入俱乐部
+                const joinSuccess = updatedLegionInfo && updatedLegionInfo.info && updatedLegionInfo.info.id === Number(batchSettings.defaultLegionId);
+
+                if (!joinSuccess) {
+                  // 需要等待审核
+                  addLog({
+                    time: new Date().toLocaleTimeString(),
+                    message: `${token.name} 申请已提交，等待俱乐部审核`,
+                    type: "warning",
+                  });
+                }
+              } catch (joinError) {
+                addLog({
+                  time: new Date().toLocaleTimeString(),
+                  message: `${token.name} 申请加入俱乐部失败: ${joinError.message || "未知错误"}`,
+                  type: "error",
+                });
+              }
+            } else {
+              addLog({
+                time: new Date().toLocaleTimeString(),
+                message: `${token.name} 已加入指定俱乐部 ${batchSettings.defaultLegionId}`,
+                type: "info",
+              });
+            }
+          } catch (infoError) {
+            // 检查是否是因为未加入俱乐部
+            if (infoError.message && (infoError.message.includes("not joined") || infoError.message.includes("未加入"))) {
+              // 未加入俱乐部，尝试加入
+              addLog({
+                time: new Date().toLocaleTimeString(),
+                message: `${token.name} 未加入俱乐部，尝试加入默认俱乐部 ${batchSettings.defaultLegionId}...`,
+                type: "info",
+              });
+
+              try {
+                // 使用 legion_applyjoin 接口申请加入俱乐部
+                const applyResult = await tokenStore.sendMessageWithPromise(
+                  tokenId,
+                  "legion_applyjoin",
+                  { legionId: Number(batchSettings.defaultLegionId) },
+                  10000,
+                );
+
+                addLog({
+                  time: new Date().toLocaleTimeString(),
+                  message: `${token.name} 申请加入俱乐部成功`,
+                  type: "success",
+                });
+
+                // 申请成功后等待一段时间让服务器处理
+                await new Promise((r) => setTimeout(r, 2000));
+
+                // 再次获取俱乐部信息，确认是否加入成功
+                try {
+                  const updatedLegionInfo = await tokenStore.sendMessageWithPromise(
+                    tokenId,
+                    "legion_getinfo",
+                    {},
+                    5000,
+                  );
+
+                  // 检查是否成功加入俱乐部
+                  const joinSuccess = updatedLegionInfo && updatedLegionInfo.info && updatedLegionInfo.info.id === Number(batchSettings.defaultLegionId);
+
+                  if (!joinSuccess) {
+                    // 需要等待审核
+                    addLog({
+                      time: new Date().toLocaleTimeString(),
+                      message: `${token.name} 申请已提交，等待俱乐部审核`,
+                      type: "warning",
+                    });
+                  }
+                } catch (updatedInfoError) {
+                  // 再次获取信息失败，可能需要等待审核
+                  addLog({
+                    time: new Date().toLocaleTimeString(),
+                    message: `${token.name} 申请已提交，等待俱乐部审核`,
+                    type: "warning",
+                  });
+                }
+              } catch (joinError) {
+                addLog({
+                  time: new Date().toLocaleTimeString(),
+                  message: `${token.name} 申请加入俱乐部失败: ${joinError.message || "未知错误"}`,
+                  type: "error",
+                });
+              }
+            } else {
+              // 其他获取信息失败的情况
+              addLog({
+                time: new Date().toLocaleTimeString(),
+                message: `${token.name} 获取俱乐部信息失败: ${infoError.message || "未知错误"}`,
+                type: "error",
+              });
+            }
+          }
+        }
+
+        // 尝试签到
+        try {
+          await tokenStore.sendMessageWithPromise(
+            tokenId,
+            "legion_signin",
+            {},
+            5000,
+          );
+          await new Promise((r) => setTimeout(r, 500));
+          tokenStatus.value[tokenId] = "completed";
+          addLog({
+            time: new Date().toLocaleTimeString(),
+            message: `=== ${token.name} 俱乐部签到已完成 ===`,
+            type: "success",
+          });
+        } catch (signinError) {
+          // 检查是否是因为今天已经签到过了
+          if (signinError.message && (signinError.message.includes("already signed") || signinError.message.includes("已经签到"))) {
+            // 已经签到过，视为成功
+            tokenStatus.value[tokenId] = "completed";
+            addLog({
+              time: new Date().toLocaleTimeString(),
+              message: `=== ${token.name} 今天已经签到过了 ===`,
+              type: "info",
+            });
+          } else {
+            // 其他签到失败原因
+            tokenStatus.value[tokenId] = "failed";
+            addLog({
+              time: new Date().toLocaleTimeString(),
+              message: `${token.name} 俱乐部签到失败: ${signinError.message || "未知错误"}`,
+              type: "error",
+            });
+          }
+        }
       } catch (error) {
         console.error(error);
         tokenStatus.value[tokenId] = "failed";
