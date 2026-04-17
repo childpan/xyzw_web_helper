@@ -1609,6 +1609,10 @@
             }}</span>
           </div>
           <div style="margin-bottom: 4px">
+            <span style="color: #6b7280">并发数：</span>
+            <span>{{ task.maxActive || 1 }}</span>
+          </div>
+          <div style="margin-bottom: 4px">
             <span style="color: #6b7280">下次执行：</span>
             <span
               :style="{
@@ -3818,6 +3822,7 @@ const saveTask = () => {
     selectedTokens: [...taskForm.selectedTokens],
     selectedTasks: [...taskForm.selectedTasks],
     enabled: taskForm.enabled,
+    maxActive: taskForm.maxActive,
   };
 
   let isNew = !editingTask.value;
@@ -4514,12 +4519,12 @@ const executeScheduledTask = async (task) => {
   });
 
   try {
-    // 设置当前任务的maxActive配置
-    currentTaskMaxActive = task.maxActive || batchSettings.maxActive;
+    // 任务的最大并发数
+    const taskMaxActive = task.maxActive || batchSettings.maxActive;
     
     addLog({
       time: new Date().toLocaleTimeString(),
-      message: `任务 ${task.name} 使用最大并发数: ${currentTaskMaxActive}`,
+      message: `任务 ${task.name} 使用最大并发数: ${taskMaxActive}`,
       type: "info",
     });
 
@@ -4566,7 +4571,7 @@ const executeScheduledTask = async (task) => {
 
     // Always use the latest selectedTokens from the task that exist in current tokens.value
     selectedTokens.value = [...availableTokens];
-
+    
     // Execute selected tasks in parallel
     const taskPromises = task.selectedTasks.map(async (taskName) => {
       if (shouldStop.value) return;
@@ -4645,7 +4650,7 @@ const executeScheduledTask = async (task) => {
       // Call the task function dynamically
       const taskFunction = eval(taskName);
       if (typeof taskFunction === "function") {
-        // For batch operations, pass isScheduledTask = true
+        // For batch operations, pass isScheduledTask = true and maxActive
         // 具体的batch任务函数内部会使用ensureConnection管理并行连接
         if (
           [
@@ -4656,9 +4661,9 @@ const executeScheduledTask = async (task) => {
             "batchLegacyGiftSendEnhanced",
           ].includes(taskName)
         ) {
-          await taskFunction(true);
+          await taskFunction(true, taskMaxActive);
         } else {
-          await taskFunction();
+          await taskFunction(taskMaxActive);
         }
       } else {
         addLog({
@@ -4774,7 +4779,7 @@ const queryRecipientInfo = async () => {
     });
 
     // 使用现有的ensureConnection函数，它已经包含了重连机制
-    await ensureConnection(firstTokenId);
+    await ensureConnection(firstTokenId, 2, batchSettings.maxActive);
 
     addLog({
       time: new Date().toLocaleTimeString(),
@@ -5624,10 +5629,7 @@ const waitForConnection = async (
 // 全局连接队列控制 - 限制并发连接数
 const connectionQueue = { active: 0 };
 
-// 当前任务的maxActive配置，默认为全局配置
-let currentTaskMaxActive = batchSettings.maxActive;
-
-const waitForConnectionSlot = async (maxActive = currentTaskMaxActive) => {
+const waitForConnectionSlot = async (maxActive = batchSettings.maxActive) => {
   while (connectionQueue.active >= maxActive) {
     await new Promise((r) => setTimeout(r, 1000));
   }
@@ -5640,7 +5642,7 @@ const releaseConnectionSlot = () => {
   }
 };
 
-const ensureConnection = async (tokenId, maxRetries = 2, maxActive = currentTaskMaxActive) => {
+const ensureConnection = async (tokenId, maxRetries = 2, maxActive = batchSettings.maxActive) => {
   const latestToken = tokens.value.find((t) => t.id === tokenId);
   if (!latestToken) {
     throw new Error(`Token not found: ${tokenId}`);
@@ -5673,8 +5675,14 @@ const ensureConnection = async (tokenId, maxRetries = 2, maxActive = currentTask
         type: "warning",
       });
 
+      // 释放槽位
+      releaseConnectionSlot();
+      
       tokenStore.closeWebSocketConnection(tokenId);
       await new Promise((r) => setTimeout(r, batchSettings.reconnectDelay));
+
+      // 重新获取槽位
+      await waitForConnectionSlot(maxActive);
 
       addLog({
         time: new Date().toLocaleTimeString(),
@@ -5840,7 +5848,7 @@ const {
 const tasksLegacy = createTasksLegacy(createTaskDeps());
 const { batchLegacyClaim, batchLegacyGiftSendEnhanced } = tasksLegacy;
 
-const startBatch = async () => {
+const startBatch = async (maxActive = batchSettings.maxActive) => {
   if (selectedTokens.value.length === 0) return;
 
   isRunning.value = true;
@@ -5883,7 +5891,7 @@ const startBatch = async () => {
           });
         }
 
-        await ensureConnection(tokenId);
+        await ensureConnection(tokenId, 2, maxActive);
 
         // Create runner with delay settings
         const runner = new DailyTaskRunner(tokenStore, {
@@ -5931,7 +5939,7 @@ const startBatch = async () => {
         releaseConnectionSlot();
         addLog({
           time: new Date().toLocaleTimeString(),
-          message: `${token.name} 连接已关闭  (队列: ${connectionQueue.active}/${batchSettings.maxActive})`,
+          message: `${token.name} 连接已关闭  (队列: ${connectionQueue.active}/${maxActive})`,
           type: "info",
         });
       }

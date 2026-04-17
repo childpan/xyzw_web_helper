@@ -96,7 +96,7 @@ export function createTasksLegacy(deps) {
   /**
    * 增强版批量赠送功法残卷（含完善的验证和错误处理）
    */
-  const batchLegacyGiftSendEnhanced = async (isScheduledTask = false) => {
+  const batchLegacyGiftSendEnhanced = async (isScheduledTask = false, maxActive) => {
     if (selectedTokens.value.length === 0) {
       message.warning("请先选择要操作的角色");
       return;
@@ -155,7 +155,7 @@ export function createTasksLegacy(deps) {
             type: "info",
           });
 
-          await ensureConnection(tokenId);
+          await ensureConnection(tokenId, 2, maxActive);
 
           const roleInfo = await tokenStore.sendGetRoleInfo(tokenId);
           const legacyFragmentCount =

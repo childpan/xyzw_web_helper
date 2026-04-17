@@ -758,7 +758,7 @@ export function createTasksItem(deps) {
     message.success("一键灯神扫荡结束");
   };
 
-  const batchOpenBox = async (isScheduledTask = false) => {
+  const batchOpenBox = async (isScheduledTask = false, maxActive) => {
     if (selectedTokens.value.length === 0) return;
 
     isRunning.value = true;
@@ -796,7 +796,7 @@ export function createTasksItem(deps) {
           type: "info",
         });
 
-        await ensureConnection(tokenId);
+        await ensureConnection(tokenId, 2, maxActive);
 
         for (let i = 0; i < batches && !shouldStop.value; i++) {
           await tokenStore.sendMessageWithPromise(
@@ -867,7 +867,7 @@ export function createTasksItem(deps) {
   /**
    * 批量钓鱼
    */
-  const batchFish = async (isScheduledTask = false) => {
+  const batchFish = async (isScheduledTask = false, maxActive) => {
     if (selectedTokens.value.length === 0) return;
 
     isRunning.value = true;
@@ -900,7 +900,7 @@ export function createTasksItem(deps) {
           type: "info",
         });
         
-        await ensureConnection(tokenId);
+        await ensureConnection(tokenId, 2, maxActive);
 
         // 检查鱼竿数量
         let role = tokenStore.gameData?.roleInfo?.role;
@@ -1094,7 +1094,7 @@ export function createTasksItem(deps) {
   /**
    * 批量招募
    */
-  const batchRecruit = async (isScheduledTask = false) => {
+  const batchRecruit = async (isScheduledTask = false, maxActive) => {
     if (selectedTokens.value.length === 0) return;
 
     isRunning.value = true;
@@ -1129,7 +1129,7 @@ export function createTasksItem(deps) {
           type: "info",
         });
 
-        await ensureConnection(tokenId);
+        await ensureConnection(tokenId, 2, maxActive);
 
         for (let i = 0; i < batches && !shouldStop.value; i++) {
           await tokenStore.sendMessageWithPromise(
@@ -1193,7 +1193,7 @@ export function createTasksItem(deps) {
     message.success("批量招募结束");
   };
 
-  const batchOpenBoxByPoints = async (isScheduledTask = false) => {
+  const batchOpenBoxByPoints = async (isScheduledTask = false, maxActive) => {
     if (selectedTokens.value.length === 0) return;
 
     isRunning.value = true;
@@ -1232,7 +1232,7 @@ export function createTasksItem(deps) {
           type: "info",
         });
 
-        await ensureConnection(tokenId);
+        await ensureConnection(tokenId, 2, maxActive);
 
         const roleInfoRes = await tokenStore.sendMessageWithPromise(
           tokenId,
