@@ -398,7 +398,7 @@
                   @click="batchConsumeActivityItems"
                   :disabled="isRunning || selectedTokens.length === 0"
                 >
-                  一键消耗活动道具
+                  一键背包道具
                 </n-button>
               </n-space>
             </n-tab-pane>
@@ -1684,6 +1684,16 @@
               <n-radio value="cron">Cron表达式</n-radio>
             </n-radio-group>
           </div>
+          <div class="setting-item">
+            <label class="setting-label">最大并发数</label>
+            <n-input-number
+              v-model:value="taskForm.maxActive"
+              :min="1"
+              :max="10"
+              :step="1"
+              placeholder="每个任务的并发数"
+            />
+          </div>
           <div class="setting-item" v-if="taskForm.runType === 'daily'">
             <label class="setting-label">运行时间</label>
             <n-time-picker v-model:value="taskForm.runTime" format="HH:mm" />
@@ -1992,6 +2002,40 @@
                 <n-select
                   v-model:value="batchSettings.defaultFishType"
                   :options="fishTypeOptions"
+                  size="small"
+                  style="width: 100px"
+                />
+              </div>
+              <div
+                class="setting-item"
+                style="
+                  flex-direction: row;
+                  justify-content: space-between;
+                  align-items: center;
+                "
+              >
+                <label class="setting-label">默认活动道具ID</label>
+                <n-input-number
+                  v-model:value="batchSettings.defaultActivityItemId"
+                  :min="1"
+                  :step="1"
+                  size="small"
+                  style="width: 100px"
+                />
+              </div>
+              <div
+                class="setting-item"
+                style="
+                  flex-direction: row;
+                  justify-content: space-between;
+                  align-items: center;
+                "
+              >
+                <label class="setting-label">默认活动道具使用数量</label>
+                <n-input-number
+                  v-model:value="batchSettings.defaultActivityItemCount"
+                  :min="1"
+                  :step="1"
                   size="small"
                   style="width: 100px"
                 />
@@ -3486,6 +3530,7 @@ const taskForm = reactive({
   selectedTokens: [], // Selected token IDs
   selectedTasks: [], // Selected task function names
   enabled: true, // Whether the task is enabled
+  maxActive: 1, // 每个任务独立的并发数配置，默认值为1
 });
 
 // 任务分组定义
@@ -4469,6 +4514,15 @@ const executeScheduledTask = async (task) => {
   });
 
   try {
+    // 设置当前任务的maxActive配置
+    currentTaskMaxActive = task.maxActive || batchSettings.maxActive;
+    
+    addLog({
+      time: new Date().toLocaleTimeString(),
+      message: `任务 ${task.name} 使用最大并发数: ${currentTaskMaxActive}`,
+      type: "info",
+    });
+
     // Verify dependencies before executing task
     const dependenciesValid = await verifyTaskDependencies(task);
     if (!dependenciesValid) {
@@ -5570,8 +5624,11 @@ const waitForConnection = async (
 // 全局连接队列控制 - 限制并发连接数
 const connectionQueue = { active: 0 };
 
-const waitForConnectionSlot = async () => {
-  while (connectionQueue.active >= batchSettings.maxActive) {
+// 当前任务的maxActive配置，默认为全局配置
+let currentTaskMaxActive = batchSettings.maxActive;
+
+const waitForConnectionSlot = async (maxActive = currentTaskMaxActive) => {
+  while (connectionQueue.active >= maxActive) {
     await new Promise((r) => setTimeout(r, 1000));
   }
   connectionQueue.active++;
@@ -5583,7 +5640,7 @@ const releaseConnectionSlot = () => {
   }
 };
 
-const ensureConnection = async (tokenId, maxRetries = 2) => {
+const ensureConnection = async (tokenId, maxRetries = 2, maxActive = currentTaskMaxActive) => {
   const latestToken = tokens.value.find((t) => t.id === tokenId);
   if (!latestToken) {
     throw new Error(`Token not found: ${tokenId}`);
@@ -5594,11 +5651,11 @@ const ensureConnection = async (tokenId, maxRetries = 2) => {
 
   if (!connected) {
     // 等待连接槽位，限制并发连接数
-    await waitForConnectionSlot();
+    await waitForConnectionSlot(maxActive);
 
     addLog({
       time: new Date().toLocaleTimeString(),
-      message: `正在连接... (队列: ${connectionQueue.active}/${batchSettings.maxActive})`,
+      message: `正在连接... (队列: ${connectionQueue.active}/${maxActive})`,
       type: "info",
     });
 
@@ -5762,6 +5819,7 @@ const {
   batchClaimStarRewards,
   batchClaimPeachTasks,
   batchGenieSweep,
+  batchConsumeActivityItems,
 } = tasksItem;
 
 const tasksDungeon = createTasksDungeon(createTaskDeps());

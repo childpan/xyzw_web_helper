@@ -63,6 +63,7 @@ export const availableTasks = [
   { label: "一键怪异塔合成", value: "batchMergeItems" },
   { label: "一键领取蟠桃园任务", value: "batchClaimPeachTasks" },
   { label: "一键扫荡灯神", value: "batchGenieSweep" },
+  { label: "一键消耗活动道具", value: "batchConsumeActivityItems" },
   { label: "一键购买梦境商品", value: "batchBuyDreamItems" },
 ];
 
@@ -133,6 +134,8 @@ export const defaultBatchSettings = {
   recruitCount: 100,
   defaultBoxType: 2001,
   defaultFishType: 1,
+  defaultActivityItemId: 5261, // 默认活动道具ID
+  defaultActivityItemCount: 1, // 默认活动道具使用数量
   receiverId: "",
   password: "",
   useGoldRefreshFallback: false,
@@ -176,6 +179,7 @@ export const defaultTaskForm = {
   selectedTokens: [],
   selectedTasks: [],
   enabled: true,
+  maxActive: 1, // 每个任务独立的并发数配置，默认值为1
 };
 
 // 默认助手设置

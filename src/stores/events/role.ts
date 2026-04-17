@@ -16,6 +16,38 @@ export const RolePlugin = ({
     if (body.role?.study?.maxCorrectNum !== undefined) {
       $emit.emit("I-study", data);
     }
+    
+    // 打印资源信息
+    gameLogger.info(`=== 资源信息 [${tokenId}] ===`);
+    const role = body.role || {};
+    gameLogger.info(`基本资源: 金币=${role.gold ?? 0}, 金砖=${role.diamond ?? 0}`);
+    
+    // 打印物品信息
+    const items = role.items || role.itemList || role.bag?.items || role.inventory || null;
+    if (items) {
+      gameLogger.info("物品列表:");
+      if (Array.isArray(items)) {
+        items.forEach(item => {
+          const id = item.id || item.itemId;
+          const quantity = item.num || item.count || item.quantity || 0;
+          const name = item.name || `物品${id}`;
+          gameLogger.info(`- ${name} (ID: ${id}): ${quantity}`);
+        });
+      } else if (typeof items === 'object') {
+        Object.entries(items).forEach(([key, value]) => {
+          let quantity = 0;
+          let name = `物品${key}`;
+          if (typeof value === 'number') {
+            quantity = value;
+          } else if (typeof value === 'object') {
+            quantity = value.num || value.count || value.quantity || 0;
+            name = value.name || name;
+          }
+          gameLogger.info(`- ${name} (ID: ${key}): ${quantity}`);
+        });
+      }
+    }
+    gameLogger.info("=== 资源信息结束 ===");
 
     // 从角色信息中提取游戏名称和服务器信息，并更新到token列表
     const tokenStore = useTokenStore();

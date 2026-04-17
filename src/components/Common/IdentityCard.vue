@@ -53,7 +53,7 @@
       </div>
 
       <div class="resources" :class="{ collapsed: !isExpanded }" v-if="hasRole">
-        <div v-for="res in resList" :key="res.label" class="res-item">
+        <div v-for="res in resList" :key="res.label" class="res-item" :title="res.id ? `ID: ${res.id}\n点击复制` : ''" @click="res.id && copyIdToClipboard(res.id)">
           <span class="label">{{ res.label }}</span>
           <span class="value">{{ res.value }}</span>
         </div>
@@ -271,6 +271,63 @@ const items = computed(() => {
   return (roleInfo.value as any).items;
 });
 
+// 道具ID映射
+const itemIdMapping = {
+  "金币": null,
+  "金砖": null,
+  "普通鱼竿": 1011,
+  "金鱼竿": 1012,
+  "珍珠": 1013,
+  "复活丹": 1017,
+  "招募令": 1001,
+  "精铁": 1006,
+  "彩玉": 1023,
+  "进阶石": 1003,
+  "蓝玉": 10002,
+  "红玉": 10003,
+  "四圣宝珠碎片": 10101,
+  "金币袋子": 3001,
+  "金砖袋子": 3002,
+  "紫色随机碎片": 3005,
+  "橙色随机碎片": 3006,
+  "红色随机碎片": 3007,
+  "精铁袋子": 3008,
+  "进阶袋子": 3009,
+  "梦魇袋子": 3010,
+  "白玉袋子": 3011,
+  "扳手袋子": 3012,
+  "聚宝盆": 3020,
+  "豪华聚宝盆": 3021,
+  "红色万能碎片": 3201,
+  "橙色万能碎片": 3302,
+  "盐靛": 1019,
+  "晶石": 1016,
+  "皮肤币": 1020,
+  "扫荡魔毯": 1021,
+  "白玉": 1022,
+  "贝壳": 1033,
+  "金盐靛": 1035,
+  "竞技场门票": 1007,
+  "木制宝箱": 2001,
+  "青铜宝箱": 2002,
+  "黄金宝箱": 2003,
+  "铂金宝箱": 2004,
+  "钻石宝箱": 2005,
+  "刷新券": 35002,
+  "零件": 35009,
+  "木柴火把": 1008,
+  "青铜火把": 1009,
+  "咸神火把": 1010,
+  "军团币": 1014,
+  "扳手": 1026,
+  "助威币": 2101,
+  "肥牛": 441,
+  "烤地瓜": 5104,
+  "秋裤": 5102,
+  "糖葫芦": 5105,
+  "糖炒栗子": 5106,
+};
+
 // 参考表：1011 普通鱼竿，1012 金鱼竿；补充：1013 珍珠、1001 招募令、1006 精铁、1023 彩玉、1003 进阶石、1017复活丹、1022 白玉
 const normalRodFromItems = computed(() => getItemCount(items.value, 1011));
 const goldRodFromItems = computed(() => getItemCount(items.value, 1012));
@@ -330,6 +387,28 @@ const legionCoinFromItems = computed(() => getItemCount(items.value, 1014)); // 
 const wrenchFromItems = computed(() => getItemCount(items.value, 1026)); // 扳手
 const cheerCoinFromItems = computed(() => getItemCount(items.value, 2101)); // 助威币
 
+// 复制ID到剪贴板
+const copyIdToClipboard = (id) => {
+  if (id) {
+    navigator.clipboard.writeText(String(id))
+      .then(() => {
+        // 可以添加一个复制成功的提示
+        console.log(`已复制ID: ${id}`);
+      })
+      .catch(err => {
+        console.error('复制失败:', err);
+      });
+  }
+};
+
+// 创建反向映射，从道具ID到道具名称
+const idToItemName = {};
+for (const [name, id] of Object.entries(itemIdMapping)) {
+  if (id !== null) {
+    idToItemName[id] = name;
+  }
+}
+
 const getCurrentActivityWeek = computed(() => {
   const now = new Date();
   const start = new Date('2025-12-12T12:00:00'); // 起始时间：黑市周开始
@@ -375,239 +454,332 @@ const getRawValue = (n: number | null | undefined) =>
   n == null ? 0 : Number(n);
 const resList = computed(() => {
   const allResources = [
-    { label: "金币", value: formatNumber(gold.value), raw: gold.value },
-    { label: "金砖", value: formatNumber(diamond.value), raw: diamond.value },
+    { label: "金币", value: formatNumber(gold.value), raw: gold.value, id: itemIdMapping["金币"] },
+    { label: "金砖", value: formatNumber(diamond.value), raw: diamond.value, id: itemIdMapping["金砖"] },
     {
       label: "普通鱼竿",
       value: display(normalRod.value as any),
       raw: getRawValue(normalRod.value as any),
+      id: itemIdMapping["普通鱼竿"],
     },
     {
       label: "金鱼竿",
       value: display(goldRod.value as any),
       raw: getRawValue(goldRod.value as any),
+      id: itemIdMapping["金鱼竿"],
     },
     {
       label: "珍珠",
       value: display(pearlFromItems.value as any),
       raw: getRawValue(pearlFromItems.value as any),
+      id: itemIdMapping["珍珠"],
     },
     {
       label: "复活丹",
       value: display(DanFromItems.value as any),
       raw: getRawValue(DanFromItems.value as any),
+      id: itemIdMapping["复活丹"],
     },
     {
       label: "招募令",
       value: display(recruitFromItems.value as any),
       raw: getRawValue(recruitFromItems.value as any),
+      id: itemIdMapping["招募令"],
     },
     {
       label: "精铁",
       value: display(ironFromItems.value as any),
       raw: getRawValue(ironFromItems.value as any),
+      id: itemIdMapping["精铁"],
     },
     {
       label: "彩玉",
       value: display(jadeFromItems.value as any),
       raw: getRawValue(jadeFromItems.value as any),
+      id: itemIdMapping["彩玉"],
     },
     {
       label: "进阶石",
       value: display(advanceStoneFromItems.value as any),
       raw: getRawValue(advanceStoneFromItems.value as any),
+      id: itemIdMapping["进阶石"],
     },
     {
       label: "蓝玉",
       value: display(blueJadeFromItems.value as any),
       raw: getRawValue(blueJadeFromItems.value as any),
+      id: itemIdMapping["蓝玉"],
     },
     {
       label: "红玉",
       value: display(redJadeFromItems.value as any),
       raw: getRawValue(redJadeFromItems.value as any),
+      id: itemIdMapping["红玉"],
     },
     {
       label: "四圣宝珠碎片",
       value: display(fourSaintFragmentFromItems.value as any),
       raw: getRawValue(fourSaintFragmentFromItems.value as any),
+      id: itemIdMapping["四圣宝珠碎片"],
     },
     {
       label: "金币袋子",
       value: display(goldBagFromItems.value as any),
       raw: getRawValue(goldBagFromItems.value as any),
+      id: itemIdMapping["金币袋子"],
     },
     {
       label: "金砖袋子",
       value: display(diamondBagFromItems.value as any),
       raw: getRawValue(diamondBagFromItems.value as any),
+      id: itemIdMapping["金砖袋子"],
     },
     {
       label: "紫色随机碎片",
       value: display(purpleFragmentFromItems.value as any),
       raw: getRawValue(purpleFragmentFromItems.value as any),
+      id: itemIdMapping["紫色随机碎片"],
     },
     {
       label: "橙色随机碎片",
       value: display(orangeFragmentFromItems.value as any),
       raw: getRawValue(orangeFragmentFromItems.value as any),
+      id: itemIdMapping["橙色随机碎片"],
     },
     {
       label: "红色随机碎片",
       value: display(redFragmentFromItems.value as any),
       raw: getRawValue(redFragmentFromItems.value as any),
+      id: itemIdMapping["红色随机碎片"],
     },
     {
       label: "精铁袋子",
       value: display(ironBagFromItems.value as any),
       raw: getRawValue(ironBagFromItems.value as any),
+      id: itemIdMapping["精铁袋子"],
     },
     {
       label: "进阶袋子",
       value: display(advanceBagFromItems.value as any),
       raw: getRawValue(advanceBagFromItems.value as any),
+      id: itemIdMapping["进阶袋子"],
     },
     {
       label: "梦魇袋子",
       value: display(nightmareBagFromItems.value as any),
       raw: getRawValue(nightmareBagFromItems.value as any),
+      id: itemIdMapping["梦魇袋子"],
     },
     {
       label: "白玉袋子",
       value: display(whiteJadeBagFromItems.value as any),
       raw: getRawValue(whiteJadeBagFromItems.value as any),
+      id: itemIdMapping["白玉袋子"],
     },
     {
       label: "扳手袋子",
       value: display(wrenchBagFromItems.value as any),
       raw: getRawValue(wrenchBagFromItems.value as any),
+      id: itemIdMapping["扳手袋子"],
     },
     {
       label: "聚宝盆",
       value: display(treasureBowlFromItems.value as any),
       raw: getRawValue(treasureBowlFromItems.value as any),
+      id: itemIdMapping["聚宝盆"],
     },
     {
       label: "豪华聚宝盆",
       value: display(luxuryTreasureBowlFromItems.value as any),
       raw: getRawValue(luxuryTreasureBowlFromItems.value as any),
+      id: itemIdMapping["豪华聚宝盆"],
     },
     {
       label: "红色万能碎片",
       value: display(redUniversalFragmentFromItems.value as any),
       raw: getRawValue(redUniversalFragmentFromItems.value as any),
+      id: itemIdMapping["红色万能碎片"],
     },
     {
       label: "橙色万能碎片",
       value: display(orangeUniversalFragmentFromItems.value as any),
       raw: getRawValue(orangeUniversalFragmentFromItems.value as any),
+      id: itemIdMapping["橙色万能碎片"],
     },
     {
       label: "盐靛",
       value: display(indigoFromItems.value as any),
       raw: getRawValue(indigoFromItems.value as any),
+      id: itemIdMapping["盐靛"],
     },
     {
       label: "晶石",
       value: display(crystalFromItems.value as any),
       raw: getRawValue(crystalFromItems.value as any),
+      id: itemIdMapping["晶石"],
     },
     {
       label: "皮肤币",
       value: display(skinCoinFromItems.value as any),
       raw: getRawValue(skinCoinFromItems.value as any),
+      id: itemIdMapping["皮肤币"],
     },
     {
       label: "扫荡魔毯",
       value: display(sweepCarpetFromItems.value as any),
       raw: getRawValue(sweepCarpetFromItems.value as any),
+      id: itemIdMapping["扫荡魔毯"],
     },
     {
       label: "白玉",
       value: display(whiteJadeFromItems.value as any),
       raw: getRawValue(whiteJadeFromItems.value as any),
+      id: itemIdMapping["白玉"],
     },
     {
       label: "贝壳",
       value: display(shellFromItems.value as any),
       raw: getRawValue(shellFromItems.value as any),
+      id: itemIdMapping["贝壳"],
     },
     {
       label: "金盐靛",
       value: display(goldIndigoFromItems.value as any),
       raw: getRawValue(goldIndigoFromItems.value as any),
+      id: itemIdMapping["金盐靛"],
     },
     {
       label: "竞技场门票",
       value: display(arenaTicketFromItems.value as any),
       raw: getRawValue(arenaTicketFromItems.value as any),
+      id: itemIdMapping["竞技场门票"],
     },
     {
       label: "木制宝箱",
       value: display(woodChestFromItems.value as any),
       raw: getRawValue(woodChestFromItems.value as any),
+      id: itemIdMapping["木制宝箱"],
     },
     {
       label: "青铜宝箱",
       value: display(bronzeChestFromItems.value as any),
       raw: getRawValue(bronzeChestFromItems.value as any),
+      id: itemIdMapping["青铜宝箱"],
     },
     {
       label: "黄金宝箱",
       value: display(goldChestFromItems.value as any),
       raw: getRawValue(goldChestFromItems.value as any),
+      id: itemIdMapping["黄金宝箱"],
     },
     {
       label: "铂金宝箱",
       value: display(platinumChestFromItems.value as any),
       raw: getRawValue(platinumChestFromItems.value as any),
+      id: itemIdMapping["铂金宝箱"],
     },
     {
       label: "钻石宝箱",
       value: display(diamondChestFromItems.value as any),
       raw: getRawValue(diamondChestFromItems.value as any),
+      id: itemIdMapping["钻石宝箱"],
     },
     {
       label: "刷新券",
       value: display(refreshCouponFromItems.value as any),
       raw: getRawValue(refreshCouponFromItems.value as any),
+      id: itemIdMapping["刷新券"],
     },
     {
       label: "零件",
       value: display(partsFromItems.value as any),
       raw: getRawValue(partsFromItems.value as any),
+      id: itemIdMapping["零件"],
     },
     {
       label: "木柴火把",
       value: display(woodTorchFromItems.value as any),
       raw: getRawValue(woodTorchFromItems.value as any),
+      id: itemIdMapping["木柴火把"],
     },
     {
       label: "青铜火把",
       value: display(bronzeTorchFromItems.value as any),
       raw: getRawValue(bronzeTorchFromItems.value as any),
+      id: itemIdMapping["青铜火把"],
     },
     {
       label: "咸神火把",
       value: display(godTorchFromItems.value as any),
       raw: getRawValue(godTorchFromItems.value as any),
+      id: itemIdMapping["咸神火把"],
     },
     {
       label: "军团币",
       value: display(legionCoinFromItems.value as any),
       raw: getRawValue(legionCoinFromItems.value as any),
+      id: itemIdMapping["军团币"],
     },
     {
       label: "扳手",
       value: display(wrenchFromItems.value as any),
       raw: getRawValue(wrenchFromItems.value as any),
+      id: itemIdMapping["扳手"],
     },
     {
       label: "助威币",
       value: display(cheerCoinFromItems.value as any),
       raw: getRawValue(cheerCoinFromItems.value as any),
+      id: itemIdMapping["助威币"],
     },
   ];
+
+  // 添加背包中的所有道具，包括未在映射中的道具
+  // 尝试不同的路径获取道具
+  let bagItems = {};
+  if ((roleInfo.value as any)?.role?.items) {
+    bagItems = (roleInfo.value as any).role.items;
+  } else if ((roleInfo.value as any)?.items) {
+    bagItems = (roleInfo.value as any).items;
+  }
+  
+  // 输出日志，帮助调试
+  console.log('=== 背包道具信息 ===');
+  console.log('背包道具:', bagItems);
+  console.log('背包道具数量:', Object.keys(bagItems).length);
+  
+  for (const [itemId, itemData] of Object.entries(bagItems)) {
+    const id = Number(itemId);
+    // 跳过已经在列表中的道具
+    if (allResources.some(item => item.id === id)) {
+      continue;
+    }
+    
+    // 计算道具数量
+    let quantity = 0;
+    if (typeof itemData === 'number') {
+      quantity = itemData;
+    } else if (typeof itemData === 'object') {
+      quantity = itemData.quantity || 0;
+    }
+    
+    // 只有数量大于0的道具才添加
+    if (quantity > 0) {
+      // 获取道具名称，未找到则显示"未知"
+      const itemName = idToItemName[id] || `未知(${id})`;
+      
+      console.log('添加道具:', itemName, 'ID:', id, '数量:', quantity);
+      
+      allResources.push({
+        label: itemName,
+        value: display(quantity),
+        raw: quantity,
+        id: id
+      });
+    }
+  }
+  
+  console.log('=== 背包道具处理结束 ===');
 
   // 分组：非零资源和零资源
   const nonZero = allResources.filter((res) => res.raw > 0);
@@ -659,7 +831,21 @@ onMounted(async () => {
   }
 });
 
-watch(() => roleInfo.value, initializeAvatar, { deep: true });
+watch(() => roleInfo.value, (newRoleInfo) => {
+  initializeAvatar();
+  // 打印所有资源信息
+  console.log('=== 资源信息更新 ===');
+  console.log('基本资源:');
+  console.log('- 金币:', (newRoleInfo as any)?.gold ?? 0);
+  console.log('- 金砖:', (newRoleInfo as any)?.diamond ?? 0);
+  
+  console.log('详细资源列表:');
+  resList.value.forEach(res => {
+    console.log(`${res.label}: ${res.value} (原始值: ${res.raw})`);
+  });
+  
+  console.log('=== 资源信息结束 ===');
+}, { deep: true });
 </script>
 
 <style scoped lang="scss">
@@ -986,5 +1172,11 @@ watch(() => roleInfo.value, initializeAvatar, { deep: true });
 
 .res-item .value {
   font-weight: var(--font-weight-semibold);
+}
+
+.res-item:hover {
+  cursor: pointer;
+  background: var(--bg-secondary);
+  border-color: var(--primary);
 }
 </style>

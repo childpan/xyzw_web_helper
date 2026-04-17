@@ -1457,6 +1457,166 @@ export function createTasksItem(deps) {
     message.success("按积分开箱结束");
   };
 
+  /**
+   * 一键背包道具
+   */
+  const batchConsumeActivityItems = async () => {
+    if (selectedTokens.value.length === 0) return;
+
+    isRunning.value = true;
+    shouldStop.value = false;
+
+    selectedTokens.value.forEach((id) => {
+      tokenStatus.value[id] = "waiting";
+    });
+
+    const taskPromises = selectedTokens.value.map(async (tokenId) => {
+      if (shouldStop.value) return;
+
+      tokenStatus.value[tokenId] = "running";
+      const token = tokens.value.find((t) => t.id === tokenId);
+
+      try {
+        addLog({
+          time: new Date().toLocaleTimeString(),
+          message: `=== 开始一键消耗活动道具: ${token.name} ===`,
+          type: "info",
+        });
+
+        await ensureConnection(tokenId);
+
+        // 获取配置的默认活动道具ID和使用数量
+        const defaultActivityItemId = batchSettings.defaultActivityItemId || 5261;
+        const defaultActivityItemCount = batchSettings.defaultActivityItemCount || 1;
+        addLog({
+          time: new Date().toLocaleTimeString(),
+          message: `${token.name} 使用默认活动道具ID: ${defaultActivityItemId}, 使用数量: ${defaultActivityItemCount}`,
+          type: "info",
+        });
+
+        // 尝试打开活动道具包
+        try {
+          // 先获取角色信息，查看该道具的数量
+          const roleInfoRes = await tokenStore.sendMessageWithPromise(
+            tokenId,
+            "role_getroleinfo",
+            {},
+            15000
+          );
+          const role = roleInfoRes?.role || roleInfoRes?.data?.role || {};
+          const items = role.items || {};
+          
+          // 查找默认活动道具的数量
+          let itemQuantity = 0;
+          let itemName = `道具${defaultActivityItemId}`;
+          
+          if (items[defaultActivityItemId]) {
+            if (typeof items[defaultActivityItemId] === 'number') {
+              itemQuantity = items[defaultActivityItemId];
+            } else if (typeof items[defaultActivityItemId] === 'object') {
+              itemQuantity = items[defaultActivityItemId].quantity || 0;
+              itemName = items[defaultActivityItemId].name || itemName;
+            }
+          }
+          
+          if (itemQuantity > 0) {
+            addLog({
+              time: new Date().toLocaleTimeString(),
+              message: `${token.name} 发现 ${itemName} x${itemQuantity}`,
+              type: "info",
+            });
+            
+            // 计算实际使用数量（不超过道具数量）
+            const actualUseCount = Math.min(itemQuantity, defaultActivityItemCount);
+            
+            // 参考OpenActivityItem方法，直接打开道具包
+            addLog({
+              time: new Date().toLocaleTimeString(),
+              message: `${token.name} 开始打开 ${itemName} x${actualUseCount}`,
+              type: "info",
+            });
+            
+            // 尝试打开道具包
+            const openRes = await tokenStore.sendMessageWithPromise(
+              tokenId,
+              "item_openpack",
+              { itemId: defaultActivityItemId, index: 0, number: actualUseCount },
+              15000
+            );
+            
+            // 输出详细的返回信息，以便调试
+            addLog({
+              time: new Date().toLocaleTimeString(),
+              message: `${token.name} 打开道具返回: ${JSON.stringify(openRes)}`,
+              type: "info",
+            });
+            
+            // 优化判断逻辑，item_openpack命令可能有不同的成功返回格式
+            const openOk = openRes && (
+              openRes.code === 0 || 
+              openRes.success === true || 
+              openRes.result === 0 ||
+              openRes.result === true ||
+              !openRes.error ||
+              openRes.message?.includes("成功")
+            );
+            
+            if (openOk) {
+              addLog({
+                time: new Date().toLocaleTimeString(),
+                message: `${token.name} 打开 ${itemName} x${actualUseCount} 成功`,
+                type: "success",
+              });
+            } else {
+              addLog({
+                time: new Date().toLocaleTimeString(),
+                message: `${token.name} 无法打开 ${itemName}，可能不是道具包类型`,
+                type: "info",
+              });
+            }
+          } else {
+            addLog({
+              time: new Date().toLocaleTimeString(),
+              message: `${token.name} 没有找到默认活动道具 (ID: ${defaultActivityItemId})`,
+              type: "info",
+            });
+          }
+        } catch (err) {
+          // 忽略错误，继续执行
+          addLog({
+            time: new Date().toLocaleTimeString(),
+            message: `${token.name} 消耗活动道具失败: ${err.message}`,
+            type: "info",
+          });
+        }
+
+        tokenStatus.value[tokenId] = "completed";
+        addLog({
+          time: new Date().toLocaleTimeString(),
+          message: `${token.name} === 消耗活动道具完成 ===`,
+          type: "success",
+        });
+      } catch (error) {
+        console.error(error);
+        tokenStatus.value[tokenId] = "failed";
+        addLog({
+          time: new Date().toLocaleTimeString(),
+          message: `消耗活动道具失败: ${error.message}`,
+          type: "error",
+        });
+      } finally {
+        tokenStore.closeWebSocketConnection(tokenId);
+        releaseConnectionSlot();
+      }
+    });
+
+    await Promise.all(taskPromises);
+
+    isRunning.value = false;
+    currentRunningTokenId.value = null;
+    message.success("一键消耗活动道具结束");
+  };
+
   return {
     batchOpenBox,
     batchOpenBoxByPoints,
@@ -1468,5 +1628,6 @@ export function createTasksItem(deps) {
     batchClaimStarRewards,
     batchClaimPeachTasks,
     batchGenieSweep,
+    batchConsumeActivityItems,
   };
 }
